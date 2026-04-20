@@ -101,7 +101,7 @@ int main() {
 
     mkfifo(PIPE_NAME, 0666);
 
-    // 3. INICIALIZA A POOL DE THREADS (ELAS JÁ FICAM ESPERANDO)
+    // 3. INICIALIZA A POOL DE THREADS
     for (int i = 0; i < NUM_THREADS; i++) {
         pthread_create(&pool[i], NULL, worker_thread, NULL);
     }
@@ -109,35 +109,45 @@ int main() {
     printf("=== SERVIDOR INICIALIZADO ===\n");
 
     while (1) {
-        fd = open(PIPE_NAME, O_RDONLY); // O servidor trava aqui esperando o cliente
-    
-        // Agora lemos TUDO que houver no pipe até que ele seja fechado do outro lado
-        ssize_t bytes_lidos;
+        // O servidor trava aqui esperando alguém abrir o pipe para escrita
+        fd = open(PIPE_NAME, O_RDONLY); 
+        
+        if (fd != -1) {
+            ssize_t bytes_lidos;
 
-        //deu erro de comando inválido, então agora ele limpa 
-        memset(buffer, 0, BUFFER_SIZE); // Zera o array inteiro com \0
+            // Limpamos o buffer para evitar lixo de memória
+            memset(buffer, 0, BUFFER_SIZE); 
 
-        while ((bytes_lidos = read(fd, buffer, BUFFER_SIZE)) > 0) {
-            int inicio = 0;
-            for (int i = 0; i < bytes_lidos; i++) {
-                if (buffer[i] == '\0') {
-                    char* msg_atual = &buffer[inicio];
-                
-                    // --- INSERÇÃO NA FILA ---
-                    pthread_mutex_lock(&mutex_fila);
-                    if (contador_tarefas < MAX_FILA) {
-                        strncpy(fila_tarefas[contador_tarefas].comando_bruto, msg_atual, BUFFER_SIZE);
-                        contador_tarefas++;
-                        pthread_cond_signal(&cond_fila);
+            // Realiza UMA única leitura do que estiver disponível no pipe 
+            bytes_lidos = read(fd, buffer, BUFFER_SIZE);
+
+            if (bytes_lidos > 0) {
+                int inicio = 0;
+                for (int i = 0; i < bytes_lidos; i++) {
+                    // Fatiamento baseado no caractere nulo enviado pelo cliente
+                    if (buffer[i] == '\0') {
+                        char* msg_atual = &buffer[inicio];
+                    
+                        // --- INSERÇÃO NA FILA ---
+                        pthread_mutex_lock(&mutex_fila);
+                        if (contador_tarefas < MAX_FILA) {
+                            strncpy(fila_tarefas[contador_tarefas].comando_bruto, msg_atual, BUFFER_SIZE);
+                            contador_tarefas++;
+                            pthread_cond_signal(&cond_fila);
+                        }
+                        else {
+                            printf("[FILA] Fila cheia! Comando: %s perdido\n", msg_atual);
+                        }
+                        pthread_mutex_unlock(&mutex_fila);
+
+                        inicio = i + 1;
                     }
-                    else printf("[FILA] Fila cheia! Comando: %s perdido\n", msg_atual);
-                    pthread_mutex_unlock(&mutex_fila);
-
-                    inicio = i + 1;
                 }
             }
+            // Fecha o descritor imediatamente após ler, voltando para o topo do while(1)
+            close(fd); 
         }
-        close(fd); // Só fecha depois que o read retornar 0 (cliente fechou)
     }
+
     return 0;
 }
