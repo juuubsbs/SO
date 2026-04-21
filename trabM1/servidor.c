@@ -46,6 +46,7 @@ void* worker_thread(void* arg) {
             fila_tarefas[i] = fila_tarefas[i + 1];
         }
         contador_tarefas--;
+        printf("\x1b[31m [FILA] Thread %lu retirou o comando:\x1b[0m %s\n", (unsigned long)pthread_self(), tarefa_local.comando_bruto);
 
         pthread_mutex_unlock(&mutex_fila);
 
@@ -108,10 +109,9 @@ int main() {
 
     printf("=== SERVIDOR INICIALIZADO ===\n");
 
+    fd = open(PIPE_NAME, O_RDONLY); 
     while (1) {
-        // O servidor trava aqui esperando alguém abrir o pipe para escrita
-        fd = open(PIPE_NAME, O_RDONLY); 
-        
+        // O servidor trava aqui esperando alguém abrir o pipe para escrita        
         if (fd != -1) {
             ssize_t bytes_lidos;
 
@@ -144,10 +144,9 @@ int main() {
                     }
                 }
             }
-            // Fecha o descritor imediatamente após ler, voltando para o topo do while(1)
-            close(fd); 
         }
     }
+    close(fd); 
 
     return 0;
 }
