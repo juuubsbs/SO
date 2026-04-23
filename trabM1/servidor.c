@@ -17,6 +17,124 @@ pthread_cond_t cond_fila = PTHREAD_COND_INITIALIZER;
 // Mutex para o Banco (Arquivo)
 pthread_mutex_t trava_banco = PTHREAD_MUTEX_INITIALIZER;
 
+int banco_insert(int id, const char *nome) {
+    FILE *arquivo = fopen("banco.txt", "r");
+    Registro registro;
+
+    if (arquivo != NULL) {
+        while (fscanf(arquivo, "%d %49s", &registro.id, registro.nome) == 2) {
+            if (registro.id == id) {
+                fclose(arquivo);
+                return 0;
+            }
+        }
+        fclose(arquivo);
+    }
+
+    arquivo = fopen("banco.txt", "a");
+    if (arquivo == NULL) {
+        perror("Erro ao abrir banco.txt para insercao");
+        return -1;
+    }
+
+    fprintf(arquivo, "%d %s\n", id, nome);
+    fclose(arquivo);
+    return 1;
+}
+
+int banco_select(int id, Registro *resultado) {
+    FILE *arquivo = fopen("banco.txt", "r");
+    Registro registro;
+
+    if (arquivo == NULL) {
+        return 0;
+    }
+
+    while (fscanf(arquivo, "%d %49s", &registro.id, registro.nome) == 2) {
+        if (registro.id == id) {
+            *resultado = registro;
+            fclose(arquivo);
+            return 1;
+        }
+    }
+
+    fclose(arquivo);
+    return 0;
+}
+
+int banco_delete(int id) {
+    FILE *arquivo = fopen("banco.txt", "r");
+    FILE *temporario = fopen("banco.tmp", "w");
+    Registro registro;
+    int removido = 0;
+
+    if (temporario == NULL) {
+        perror("Erro ao criar arquivo temporario");
+        if (arquivo != NULL) {
+            fclose(arquivo);
+        }
+        return -1;
+    }
+
+    if (arquivo != NULL) {
+        while (fscanf(arquivo, "%d %49s", &registro.id, registro.nome) == 2) {
+            if (registro.id == id) {
+                removido = 1;
+            }
+            else {
+                fprintf(temporario, "%d %s\n", registro.id, registro.nome);
+            }
+        }
+        fclose(arquivo);
+    }
+
+    fclose(temporario);
+
+    if (rename("banco.tmp", "banco.txt") != 0) {
+        perror("Erro ao atualizar banco.txt");
+        return -1;
+    }
+
+    return removido;
+}
+
+int banco_update(int id, const char *novo_nome) {
+    FILE *arquivo = fopen("banco.txt", "r");
+    FILE *temporario = fopen("banco.tmp", "w");
+    Registro registro;
+    int atualizado = 0;
+
+    if (temporario == NULL) {
+        perror("Erro ao criar arquivo temporario");
+        if (arquivo != NULL) {
+            fclose(arquivo);
+        }
+        return -1;
+    }
+
+    if (arquivo != NULL) {
+        while (fscanf(arquivo, "%d %49s", &registro.id, registro.nome) == 2) {
+            if (registro.id == id) {
+                fprintf(temporario, "%d %s\n", id, novo_nome);
+                atualizado = 1;
+            }
+            else {
+                fprintf(temporario, "%d %s\n", registro.id, registro.nome);
+            }
+        }
+        fclose(arquivo);
+    }
+
+    fclose(temporario);
+
+    if (rename("banco.tmp", "banco.txt") != 0) {
+        perror("Erro ao atualizar banco.txt");
+        return -1;
+    }
+
+    return atualizado;
+}
+
 //função que identifica o comando inserido (somente a palavra chave)
 TipoOperacao identificar_comando(char* comando_bruto) {
     char cmd[20];
@@ -31,6 +149,8 @@ TipoOperacao identificar_comando(char* comando_bruto) {
 }
 
 void* worker_thread(void* arg) {
+    (void)arg;
+
     while (1) {
         Tarefa tarefa_local;
 
@@ -63,27 +183,67 @@ void* worker_thread(void* arg) {
             case OP_INSERT: {
                 char *id_s = strtok_r(NULL, " ", &saveptr);
                 char *nome = strtok_r(NULL, " ", &saveptr);
-                printf("[THREAD] Inserindo ID %s Nome %s\n", id_s, nome);
-                // chamar_funcao_insert(atoi(id_s), nome);
+                if (id_s == NULL || nome == NULL) {
+                    printf("[THREAD] INSERT invalido. Use: INSERT <id> <nome>\n");
+                    break;
+                }
+
+                int resultado = banco_insert(atoi(id_s), nome);
+                if (resultado == 1) {
+                    printf("[THREAD] Inseriu ID %s Nome %s\n", id_s, nome);
+                }
+                else if (resultado == 0) {
+                    printf("[THREAD] INSERT ignorado: ID %s ja existe\n", id_s);
+                }
                 break;
             }
             case OP_DELETE: {
                 char *id_s = strtok_r(NULL, " ", &saveptr);
-                printf("[THREAD] Removendo ID %s\n", id_s);
-                // chamar_funcao_delete(atoi(id_s), nome);
+                if (id_s == NULL) {
+                    printf("[THREAD] DELETE invalido. Use: DELETE <id>\n");
+                    break;
+                }
+
+                int resultado = banco_delete(atoi(id_s));
+                if (resultado == 1) {
+                    printf("[THREAD] Removeu ID %s\n", id_s);
+                }
+                else if (resultado == 0) {
+                    printf("[THREAD] DELETE ignorado: ID %s nao encontrado\n", id_s);
+                }
                 break;
             }
             case OP_UPDATE: {
                 char *id_s = strtok_r(NULL, " ", &saveptr);
                 char *nome = strtok_r(NULL, " ", &saveptr);
-                printf("[THREAD] Atualizando ID %s para Nome %s\n", id_s, nome);
-                // chamar_funcao_update(atoi(id_s), nome);
+                if (id_s == NULL || nome == NULL) {
+                    printf("[THREAD] UPDATE invalido. Use: UPDATE <id> <nome>\n");
+                    break;
+                }
+
+                int resultado = banco_update(atoi(id_s), nome);
+                if (resultado == 1) {
+                    printf("[THREAD] Atualizou ID %s para Nome %s\n", id_s, nome);
+                }
+                else if (resultado == 0) {
+                    printf("[THREAD] UPDATE ignorado: ID %s nao encontrado\n", id_s);
+                }
                 break;
             }
             case OP_SELECT: {
                 char *param = strtok_r(NULL, " ", &saveptr);
-                printf("[THREAD] Selecionando: %s\n", param);
-                // chamar_funcao_select(atoi(id_s), nome);
+                if (param == NULL) {
+                    printf("[THREAD] SELECT invalido. Use: SELECT <id>\n");
+                    break;
+                }
+
+                Registro resultado;
+                if (banco_select(atoi(param), &resultado)) {
+                    printf("[THREAD] SELECT encontrou: ID %d Nome %s\n", resultado.id, resultado.nome);
+                }
+                else {
+                    printf("[THREAD] SELECT: ID %s nao encontrado\n", param);
+                }
                 break;
             }
             default:
