@@ -249,64 +249,50 @@ void* worker_thread(void* arg) {
             default:
                 printf("[THREAD] Comando inválido.\n");
         }
-        sleep(1);
         pthread_mutex_unlock(&trava_banco); // Libera o arquivo
     }
     return NULL;
 }
 
 int main() {
-    int fd;
+  int fd;
+  char buffer[BUFFER_SIZE];
+  pthread_t pool[NUM_THREADS];
+
+  mkfifo(PIPE_NAME, 0666);
+
+  // 3. INICIALIZA A POOL DE THREADS
+  for (int i = 0; i < NUM_THREADS; i++) {
+    pthread_create(&pool[i], NULL, worker_thread, NULL);
+  }
+
+  printf("=== SERVIDOR INICIALIZADO ===\n");
+
+  fd = open(PIPE_NAME, O_RDONLY);
+  while (1) {
     char buffer[BUFFER_SIZE];
-    pthread_t pool[NUM_THREADS];
+    int i = 0;
+    char c;
+      while (read(fd, &c, 1) > 0) {
+        buffer[i++] = c;
+        if (c == '\0') {
 
-    mkfifo(PIPE_NAME, 0666);
-
-    // 3. INICIALIZA A POOL DE THREADS
-    for (int i = 0; i < NUM_THREADS; i++) {
-        pthread_create(&pool[i], NULL, worker_thread, NULL);
-    }
-
-    printf("=== SERVIDOR INICIALIZADO ===\n");
-
-    fd = open(PIPE_NAME, O_RDONLY); 
-    while (1) {
-        // O servidor trava aqui esperando alguém abrir o pipe para escrita        
-        if (fd != -1) {
-            ssize_t bytes_lidos;
-
-            // Limpamos o buffer para evitar lixo de memória
-            memset(buffer, 0, BUFFER_SIZE); 
-
-            // Realiza UMA única leitura do que estiver disponível no pipe 
-            bytes_lidos = read(fd, buffer, BUFFER_SIZE);
-
-            if (bytes_lidos > 0) {
-                int inicio = 0;
-                for (int i = 0; i < bytes_lidos; i++) {
-                    // Fatiamento baseado no caractere nulo enviado pelo cliente
-                    if (buffer[i] == '\0') {
-                        char* msg_atual = &buffer[inicio];
-                    
-                        // --- INSERÇÃO NA FILA ---
-                        pthread_mutex_lock(&mutex_fila);
-                        if (contador_tarefas < MAX_FILA) {
-                            strncpy(fila_tarefas[contador_tarefas].comando_bruto, msg_atual, BUFFER_SIZE);
-                            contador_tarefas++;
-                            pthread_cond_signal(&cond_fila);
-                        }
-                        else {
-                            printf("[FILA] Fila cheia! Comando: %s perdido\n", msg_atual);
-                        }
-                        pthread_mutex_unlock(&mutex_fila);
-
-                        inicio = i + 1;
-                    }
-                }
-            }
+          pthread_mutex_lock(&mutex_fila);
+          if (contador_tarefas < MAX_FILA) {
+            strncpy(fila_tarefas[contador_tarefas].comando_bruto, buffer,
+                    BUFFER_SIZE);
+            contador_tarefas++;
+            pthread_cond_signal(&cond_fila);
+          }
+          pthread_mutex_unlock(&mutex_fila);
+          i = 0; // reset for next message
         }
-    }
-    close(fd); 
+      }
 
-    return 0;
+    close(fd);
+    fd = open(PIPE_NAME, O_RDONLY);
+  }
+  close(fd);
+
+  return 0;
 }

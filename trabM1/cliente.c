@@ -20,8 +20,6 @@ void enviar(char *msg) {
 int main() {
     printf("=== INICIANDO CLIENTE ===\n");
 
-    sleep(2);
-
     // 1. Simulação de Inserção
     enviar("INSERT 10 Aluno_Univali");
 
