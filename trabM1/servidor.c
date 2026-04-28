@@ -174,11 +174,9 @@ void* worker_thread(void* arg) {
             fila_tarefas[i] = fila_tarefas[i + 1];
         }
         contador_tarefas--;
-        printf("\x1b[31m [FILA] Thread %lu retirou o comando:\x1b[0m %s\n", (unsigned long)pthread_self(), tarefa_local.comando_bruto);
+        printf("\x1b[34m[FILA]\x1b[0m Thread %lu retirou o comando: %s\n", (unsigned long)pthread_self(), tarefa_local.comando_bruto);//vermelho
 
         pthread_mutex_unlock(&mutex_fila);
-
-        printf("[N. %lu] recebeu um comando...\n", (unsigned long)pthread_self());
 
         // 2. PROCESSAMENTO
         TipoOperacao op = identificar_comando(tarefa_local.comando_bruto);
@@ -192,32 +190,32 @@ void* worker_thread(void* arg) {
                 char *id_s = strtok_r(NULL, " ", &saveptr);
                 char *nome = strtok_r(NULL, " ", &saveptr);
                 if (id_s == NULL || nome == NULL) {
-                    printf("[THREAD] INSERT invalido. Use: INSERT <id> <nome>\n");
+                    printf("\x1b[35m[THREAD] INSERT invalido. Use: INSERT <id> <nome>\x1b[0m\n"); //roxo
                     break;
                 }
 
                 int resultado = banco_insert(atoi(id_s), nome);
                 if (resultado == 1) {
-                    printf("[THREAD] Inseriu ID %s Nome %s\n", id_s, nome);
+                    printf("[THREAD] \x1b[32mInseriu\x1b[0m ID %s Nome %s\n", id_s, nome); //verde
                 }
                 else if (resultado == 0) {
-                    printf("[THREAD] INSERT ignorado: ID %s ja existe\n", id_s);
+                    printf("\x1b[33m[THREAD] INSERT ignorado: ID %s ja existe\x1b[0m\n", id_s); //amarelo
                 }
                 break;
             }
             case OP_DELETE: {
                 char *id_s = strtok_r(NULL, " ", &saveptr);
                 if (id_s == NULL) {
-                    printf("[THREAD] DELETE invalido. Use: DELETE <id>\n");
+                    printf("\x1b[35m[THREAD] DELETE invalido. Use: DELETE <id>\x1b[0m\n");
                     break;
                 }
 
                 int resultado = banco_delete(atoi(id_s));
                 if (resultado == 1) {
-                    printf("[THREAD] Removeu ID %s\n", id_s);
+                    printf("[THREAD] \x1b[32mRemoveu\x1b[0m ID %s\n", id_s);
                 }
                 else if (resultado == 0) {
-                    printf("[THREAD] DELETE ignorado: ID %s nao encontrado\n", id_s);
+                    printf("\x1b[33m[THREAD] DELETE ignorado: ID %s nao encontrado\x1b[0m\n", id_s);
                 }
                 break;
             }
@@ -225,37 +223,37 @@ void* worker_thread(void* arg) {
                 char *id_s = strtok_r(NULL, " ", &saveptr);
                 char *nome = strtok_r(NULL, " ", &saveptr);
                 if (id_s == NULL || nome == NULL) {
-                    printf("[THREAD] UPDATE invalido. Use: UPDATE <id> <nome>\n");
+                    printf("\x1b[35m[THREAD] UPDATE invalido. Use: UPDATE <id> <nome>\x1b[0m\n");
                     break;
                 }
 
                 int resultado = banco_update(atoi(id_s), nome);
                 if (resultado == 1) {
-                    printf("[THREAD] Atualizou ID %s para Nome %s\n", id_s, nome);
+                    printf("[THREAD] \x1b[32mAtualizou\x1b[0m ID %s para Nome %s\n", id_s, nome);
                 }
                 else if (resultado == 0) {
-                    printf("[THREAD] UPDATE ignorado: ID %s nao encontrado\n", id_s);
+                    printf("\x1b[33m[THREAD] UPDATE ignorado: ID %s nao encontrado\x1b[0m\n", id_s);
                 }
                 break;
             }
             case OP_SELECT: {
                 char *param = strtok_r(NULL, " ", &saveptr);
                 if (param == NULL) {
-                    printf("[THREAD] SELECT invalido. Use: SELECT <id>\n");
+                    printf("\x1b[35m[THREAD] SELECT invalido. Use: SELECT <id> ou SELECT <nome>\x1b[0m\n");
                     break;
                 }
 
                 Registro resultado;
                 if (banco_select(param, &resultado)) {
-                    printf("[THREAD] SELECT encontrou: ID %d Nome %s\n", resultado.id, resultado.nome);
+                    printf("[THREAD] \x1b[32mEncontrou:\x1b[0m ID %d Nome %s\n", resultado.id, resultado.nome);
                 }
                 else {
-                    printf("[THREAD] SELECT: ID %s nao encontrado\n", param);
+                    printf("\x1b[33m[THREAD] SELECT: ID %s nao encontrado\x1b[0m\n", param);
                 }
                 break;
             }
             default:
-                printf("[THREAD] Comando inválido.\n");
+                printf("\x1b[31m[THREAD] Comando inválido.\x1b[0m\n");
         }
         pthread_mutex_unlock(&trava_banco); // Libera o arquivo
     }

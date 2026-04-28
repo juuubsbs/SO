@@ -36,28 +36,37 @@ int main() {
     enviar("SELECT 101");
 
     // 6. Simulação de Inserção
-    enviar("SELECT 102 Bob_Engenharia");
+    enviar("SELECT 102");
 
     // 7. Simulação de Inserção
-    enviar("SELECT 104");
+    enviar("SELECT 103");
 
     // 8. Simulação de Inserção
-    enviar("SELECT 103");
+    enviar("SELECT 104");
 
     // 9. Simulação de Inserção
-    enviar("SELECT 103");
+    enviar("UPDATE 101 Joaquina");
 
     // 9. Simulação de Inserção
-    enviar("SELECT Alice");
+    enviar("UPDATE 102 Mariazinha");
 
     // 9. Simulação de Inserção
-    enviar("SELECT Bob_Engenharia");
+    enviar("UPDATE 103 Analinda");
 
     // 9. Simulação de Inserção
-    enviar("SELECT Bob");
+    enviar("UPDATE 104 Amandinha");
 
-    // 9. Simulação de Inserção
-    enviar("SELECT David_Proa");
+    // 5. Simulação de Seleção (Busca)
+    enviar("DELETE 101");
+
+    // 5. Simulação de Seleção (Busca)
+    enviar("DELETE 102");
+
+    // 5. Simulação de Seleção (Busca)
+    enviar("DELETE 103");
+
+    // 5. Simulação de Seleção (Busca)
+    enviar("DELETE 104");
 
     printf("=== TESTE FINALIZADO COM SUCESSO ===\n");
     return 0;
